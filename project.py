@@ -1,3 +1,4 @@
+import folium
 import pyomo.environ as pyo
 import math
 import pandas as pd
@@ -544,3 +545,79 @@ except:
     print("\nNo se pudieron exportar los resultados a CSV (requiere pandas)")
 
 print("\n==== FIN DEL PROGRAMA ====")
+
+
+def plot_routes_on_map():
+    all_lats = [coords[node][0] for node in nodes]
+    all_lons = [coords[node][1] for node in nodes]
+    center_lat = sum(all_lats) / len(all_lats)
+    center_lon = sum(all_lons) / len(all_lons)
+
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+
+    for node in nodes:
+        lat, lon = coords[node]
+        if node in depots:
+            folium.Marker(
+                location=[lat, lon],
+                popup=f"Centro: {node}",
+                icon=folium.Icon(color='black', icon='home', prefix='fa')
+            ).add_to(m)
+        else:
+            folium.Marker(
+                location=[lat, lon],
+                popup=f"Cliente: {node}",
+                icon=folium.Icon(color='orange', icon='user', prefix='fa')
+            ).add_to(m)
+
+    vehicle_colors = {'V1': 'red', 'V2': 'blue', 'V3': 'green'}
+
+    for v in vehicles:
+        route_nodes = []
+        start_depot = None
+        for d in depots:
+            try:
+                if pyo.value(model.start_depot[v, d]) > 0.5:
+                    start_depot = d
+                    break
+            except:
+                pass
+        if start_depot is None:
+            continue
+
+        route_nodes.append(start_depot)
+        current_node = start_depot
+
+        while True:
+            next_node = None
+            for j in nodes:
+                if j != current_node:
+                    try:
+                        if pyo.value(model.x[v, current_node, j]) > 0.5:
+                            next_node = j
+                            break
+                    except:
+                        pass
+            if next_node is None:
+                break
+            route_nodes.append(next_node)
+            current_node = next_node
+            try:
+                if next_node in depots and pyo.value(model.end_depot[v, next_node]) > 0.5:
+                    break
+            except:
+                pass
+
+        route_coords = [coords[node] for node in route_nodes]
+        folium.PolyLine(
+            locations=[(lat, lon) for (lat, lon) in route_coords],
+            color=vehicle_colors[v],
+            weight=5,
+            opacity=0.7,
+            tooltip=f"Ruta {v}"
+        ).add_to(m)
+    m.save("mapa_rutas.html")
+
+
+# Al final del programa, luego de la impresión de resultados, llama a la función:
+plot_routes_on_map()
