@@ -370,10 +370,8 @@ model.vehicle_usage = pyo.Constraint(model.V, rule=vehicle_usage_rule,
 
 # Usar el solver GLPK
 solver = pyo.SolverFactory('glpk')
-# tee=True muestra la salida del solver
-results = solver.solve(model, tee=True)
+results = solver.solve(model)
 
-# Verificar estado de la solución
 if (results.solver.status == pyo.SolverStatus.ok and
         results.solver.termination_condition == pyo.TerminationCondition.optimal):
     print("\nSolución óptima encontrada!")
@@ -393,7 +391,6 @@ else:
 print("\n==== RESULTADOS DE LA OPTIMIZACIÓN ====")
 print(f"Valor objetivo (Costo total): {pyo.value(model.obj):.2f} COP")
 
-# Resumen por vehículo
 total_distance = 0
 total_load = 0
 
@@ -403,7 +400,6 @@ for v in model.V:
     vehicle_load = 0
     route_nodes = []
 
-    # Determinar el depósito inicial para este vehículo
     start_depot = None
     for d in depots:
         try:
@@ -419,7 +415,6 @@ for v in model.V:
         print("  Este vehículo no es utilizado en la solución óptima.")
         continue
 
-    # Determinar el depósito final para este vehículo
     end_depot = None
     for d in depots:
         try:
@@ -433,7 +428,6 @@ for v in model.V:
         f"\nVehículo {v} (depósito inicial: {start_depot}, depósito final: {end_depot}):")
     print("----------------------------------------")
 
-    # Reconstruir la ruta para este vehículo
     current_node = start_depot
     route_nodes.append(current_node)
 
@@ -443,13 +437,11 @@ for v in model.V:
             if j != current_node:
                 try:
                     x_val = pyo.value(model.x[v, current_node, j])
-                    if x_val > 0.5:  # Considera el arco como parte de la solución si x > 0.5
+                    if x_val > 0.5:
                         next_node = j
                         try:
                             flow_val = pyo.value(model.f[v, current_node, j])
-                            # Actualiza carga máxima
                             vehicle_load = max(vehicle_load, flow_val)
-                            # Suma distancia
                             vehicle_distance += dist[(current_node, j)]
                             print(
                                 f"  {current_node} -> {j} | Distancia: {dist[(current_node, j)]:.2f} km | Flujo: {flow_val:.1f} unidades")
@@ -467,7 +459,6 @@ for v in model.V:
         current_node = next_node
         route_nodes.append(current_node)
 
-        # Si hemos llegado al depósito final, terminamos
         if current_node in depots and current_node == end_depot:
             break
 
@@ -482,7 +473,6 @@ for v in model.V:
     total_distance += vehicle_distance
     total_load += sum(demand[n] for n in route_nodes if n in clients)
 
-# Resumen global
 print("\n==== RESUMEN GLOBAL DE LA SOLUCIÓN ====")
 print(
     f"Distancia total recorrida por todos los vehículos: {total_distance:.2f} km")
@@ -491,7 +481,6 @@ print(f"Costo total de operación: {total_distance * cost_factor:.2f} COP")
 print(
     f"Costo promedio por unidad entregada: {(total_distance * cost_factor)/sum(demand.values()):.2f} COP/unidad")
 
-# Estadísticas de utilización
 print("\n==== ESTADÍSTICAS DE UTILIZACIÓN ====")
 print("Centros de distribución:")
 for d in depots:
@@ -536,7 +525,6 @@ try:
             except:
                 pass
 
-    # Crear DataFrame y exportar
     if routes_data:
         routes_df = pd.DataFrame(routes_data)
         routes_df.to_csv('resultados_rutas_logistico.csv', index=False)
@@ -619,5 +607,4 @@ def plot_routes_on_map():
     m.save("mapa_rutas.html")
 
 
-# Al final del programa, luego de la impresión de resultados, llama a la función:
 plot_routes_on_map()
