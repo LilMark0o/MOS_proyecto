@@ -75,15 +75,15 @@ vehicle_range = {'V1': 120, 'V2': 100, 'V3': 150}
 # Tarifas y costos operativos
 F_t = 5000
 C_m = 700
-Pf = 15000
+Pf = 16259
 
 # Consumo de combustible: 0.1 litros por km
 # Este valor es un promedio para vehículos de carga ligera en entorno urbano
-fuel_consumption = 0.1  # litros por km
-# Costo del combustible por km = 1500 COP/km
+fuel_consumption = 0.0233  # litros por km
 fuel_cost_per_km = Pf * fuel_consumption
 
-cost_factor = F_t + C_m + fuel_cost_per_km  # 5000 + 700 + 1500 = 7200 COP/km
+cost_factor = F_t + C_m + fuel_cost_per_km
+print(f"Factor de costo por km: {cost_factor} COP/km")
 
 # ------------------------------------------------------------------------------
 # 5. MATRIZ DE DISTANCIAS
