@@ -1,30 +1,60 @@
-import folium
-import pyomo.environ as pyo
 import math
-import pandas as pd
-import matplotlib.pyplot as plt
+import os
 import time
+
+import folium
+import matplotlib.pyplot as plt
+import pandas as pd
+import pyomo.environ as pyo
+import requests as req
 
 # ------------------------------------------------------------------------------
 # FUNCIONES AUXILIARES
 # ------------------------------------------------------------------------------
 
+API_KEY=os.environ.get('GOOGLE_MAPS_API_KEY')
+if API_KEY is None:
+    print("Error: La variable de entorno 'GOOGLE_MAPS_API_KEY' no está configurada.")
+    exit()
 
-def haversine(lat1, lon1, lat2, lon2):
-    # Convertir grados a radianes
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-
-    # Cálculo de la fórmula haversine
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    a = math.sin(dlat/2)**2 + math.cos(lat1) * \
-        math.cos(lat2) * math.sin(dlon/2)**2
-    c = 2 * math.asin(math.sqrt(a))
-
-    # Radio de la Tierra en km
-    r = 6371
-
-    return c * r
+def get_distance(lat1, lon1, lat2, lon2):
+    res = req.post(
+        'https://routes.googleapis.com/directions/v2:computeRoutes',
+        headers={
+            'Content-Type': 'application/json',
+            'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters',
+            'X-Goog-Api-Key': API_KEY
+        },
+        json={
+            "origin": {
+                "location": {
+                    "latLng": {
+                        "latitude": lat1,
+                        "longitude": lon1
+                    }
+                }
+            },
+            "destination": {
+                "location": {
+                    "latLng": {
+                        "latitude": lat2,
+                        "longitude": lon2
+                    }
+                }
+            },
+            "travelMode": "DRIVE",
+            "routingPreference": "TRAFFIC_AWARE",
+            "computeAlternativeRoutes": False,
+            "routeModifiers": {
+                "avoidTolls": False,
+                "avoidHighways": False,
+                "avoidFerries": False
+            },
+            "languageCode": "en-US",
+            "units": "IMPERIAL"
+        }
+    )
+    return res.json()['routes'][0]['distanceMeters'] / 1000  # Convertir a km
 
 # ------------------------------------------------------------------------------
 # 1. DATOS DEL PROBLEMA Y CONJUNTOS
@@ -88,11 +118,11 @@ print(f"Factor de costo por km: {cost_factor} COP/km")
 # ------------------------------------------------------------------------------
 # 5. MATRIZ DE DISTANCIAS
 # ------------------------------------------------------------------------------
-# Cálculo de distancias entre todos los pares de nodos usando la fórmula de Haversine.
+# Cálculo de distancias entre todos los pares de nodos usando la API de Google Maps
 # Esta matriz es fundamental para determinar los costos de transporte y verificar
 # restricciones de rango.
 
-# Calcular la distancia entre cada par de nodos utilizando Haversine
+# Calcular la distancia entre cada par de nodos utilizando la API de Google Maps
 print("Calculando matriz de distancias entre nodos...")
 dist = {}
 for i in nodes:
@@ -100,7 +130,7 @@ for i in nodes:
         if i != j:
             lat1, lon1 = coords[i]
             lat2, lon2 = coords[j]
-            dist[(i, j)] = haversine(lat1, lon1, lat2, lon2)
+            dist[(i, j)] = get_distance(lat1, lon1, lat2, lon2)
         else:
             dist[(i, j)] = 0  # La distancia de un nodo a sí mismo es 0
 
