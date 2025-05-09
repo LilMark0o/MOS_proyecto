@@ -43,7 +43,7 @@ def get_distance(lat1, lon1, lat2, lon2):
                 }
             },
             "travelMode": "DRIVE",
-            "routingPreference": "TRAFFIC_AWARE",
+            "routingPreference": "TRAFFIC_UNAWARE",
             "computeAlternativeRoutes": False,
             "routeModifiers": {
                 "avoidTolls": False,
