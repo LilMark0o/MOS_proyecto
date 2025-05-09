@@ -55,67 +55,38 @@ def get_distance(lat1, lon1, lat2, lon2):
         }
     )
     return res.json()['routes'][0]['distanceMeters'] / 1000  # Convertir a km
+# ----------------------------------------------------------
+# DATOS CSV
+# ----------------------------------------------------------
+# Leer datos desde CSV
+depots_df = pd.read_csv("depots.csv")
+clients_df = pd.read_csv("clients.csv")
+vehicles_df = pd.read_csv("vehicles.csv")
 
-# ------------------------------------------------------------------------------
-# 1. DATOS DEL PROBLEMA Y CONJUNTOS
-# ------------------------------------------------------------------------------
-
-
-depots = ['CD1', 'CD2', 'CD3']
-clients = ['C1', 'C2', 'C3']
+# Nombres de nodos
+depots = [f"CD{int(i)}" for i in depots_df["DepotID"]]
+clients = [f"C{int(i)}" for i in clients_df["ClientID"]]
 nodes = depots + clients
+vehicles = [f"V{int(i)}" for i in vehicles_df["VehicleID"]]
 
-vehicles = ['V1', 'V2', 'V3']
-
-# ------------------------------------------------------------------------------
-# 2. DATOS GEOGRÁFICOS, DEMANDAS E INVENTARIO
-# ------------------------------------------------------------------------------
-
-
+# Coordenadas de todos los nodos
 coords = {
-    'CD1': (4.7110, -74.0721),  # Bodega Norte
-    'CD2': (4.6050, -74.0835),  # Bodega Sur
-    'CD3': (4.6700, -74.0300),  # Bodega Este
-    'C1': (4.6486, -74.0608),   # Cliente Catalina
-    'C2': (4.7333, -74.0700),   # Cliente Rodrigo
-    'C3': (4.7000, -74.0200)    # Cliente Luis
+    **{f"CD{int(row.DepotID)}": (row.Latitude, row.Longitude) for _, row in depots_df.iterrows()},
+    **{f"C{int(row.ClientID)}": (row.Latitude, row.Longitude) for _, row in clients_df.iterrows()}
 }
 
-# Demanda en unidades para cada cliente
-demand = {'C1': 50, 'C2': 80, 'C3': 65}
-for d in depots:
-    demand[d] = 0  # Los centros de distribución no tienen demanda, solo suministran
+# Demanda (0 para depósitos)
+demand = {f"C{int(row.ClientID)}": row.Demand for _, row in clients_df.iterrows()}
+demand.update({d: 0 for d in depots})
 
-stock = {'CD1': 20000, 'CD2': 50000, 'CD3': 30000}
+# Stock en depósitos
+stock = {f"CD{int(row.DepotID)}": row.Capacity for _, row in depots_df.iterrows()}
 
-# ------------------------------------------------------------------------------
-# 3. DATOS DE LOS VEHÍCULOS
-# ------------------------------------------------------------------------------
+# Capacidad y rango de vehículos
+vehicle_capacity = {f"V{int(row.VehicleID)}": row.Capacity for _, row in vehicles_df.iterrows()}
+vehicle_range = {f"V{int(row.VehicleID)}": row.Range for _, row in vehicles_df.iterrows()}
 
-# Capacidad de carga (en unidades) de cada vehículo
-vehicle_capacity = {'V1': 100, 'V2': 80, 'V3': 150}
 
-# Rango operativo de cada vehículo (en km)
-vehicle_range = {'V1': 120, 'V2': 100, 'V3': 150}
-
-# ------------------------------------------------------------------------------
-# 4. PARÁMETROS DE COSTO
-# ------------------------------------------------------------------------------
-
-# Tarifas y costos operativos
-F_t = 5000
-C_m = 700
-Pf = 16259
-
-# Consumo de combustible: 0.1 litros por km
-# Este valor es un promedio para vehículos de carga ligera en entorno urbano
-fuel_consumption = 0.0233  # litros por km
-fuel_cost_per_km = Pf * fuel_consumption
-
-cost_factor = F_t + C_m + fuel_cost_per_km
-print(f"Factor de costo por km: {cost_factor} COP/km")
-
-# ------------------------------------------------------------------------------
 # 5. MATRIZ DE DISTANCIAS
 # ------------------------------------------------------------------------------
 # Cálculo de distancias entre todos los pares de nodos usando la API de Google Maps
