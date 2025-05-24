@@ -12,10 +12,11 @@ import requests as req
 # FUNCIONES AUXILIARES
 # ------------------------------------------------------------------------------
 
-API_KEY=os.environ.get('GOOGLE_MAPS_API_KEY')
+API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
 if API_KEY is None:
     print("Error: La variable de entorno 'GOOGLE_MAPS_API_KEY' no está configurada.")
     exit()
+
 
 def get_distance(lat1, lon1, lat2, lon2):
     res = req.post(
@@ -55,6 +56,8 @@ def get_distance(lat1, lon1, lat2, lon2):
         }
     )
     return res.json()['routes'][0]['distanceMeters'] / 1000  # Convertir a km
+
+
 # ----------------------------------------------------------
 # DATOS CSV
 # ----------------------------------------------------------
@@ -76,15 +79,19 @@ coords = {
 }
 
 # Demanda (0 para depósitos)
-demand = {f"C{int(row.ClientID)}": row.Demand for _, row in clients_df.iterrows()}
+demand = {f"C{int(row.ClientID)}": row.Demand for _,
+          row in clients_df.iterrows()}
 demand.update({d: 0 for d in depots})
 
 # Stock en depósitos
-stock = {f"CD{int(row.DepotID)}": row.Capacity for _, row in depots_df.iterrows()}
+stock = {f"CD{int(row.DepotID)}": row.Capacity for _,
+         row in depots_df.iterrows()}
 
 # Capacidad y rango de vehículos
-vehicle_capacity = {f"V{int(row.VehicleID)}": row.Capacity for _, row in vehicles_df.iterrows()}
-vehicle_range = {f"V{int(row.VehicleID)}": row.Range for _, row in vehicles_df.iterrows()}
+vehicle_capacity = {
+    f"V{int(row.VehicleID)}": row.Capacity for _, row in vehicles_df.iterrows()}
+vehicle_range = {f"V{int(row.VehicleID)}": row.Range for _,
+                 row in vehicles_df.iterrows()}
 
 
 # 5. MATRIZ DE DISTANCIAS
@@ -166,6 +173,17 @@ model.range_vehicle = pyo.Param(model.V,
                                 doc="Rango operativo en km de cada vehículo")
 
 # Factor de costo por km recorrido
+F_t = 5000
+C_m = 700
+Pf = 16259
+
+# Consumo de combustible: 0.1 litros por km
+# Este valor es un promedio para vehículos de carga ligera en entorno urbano
+fuel_consumption = 0.0233  # litros por km
+fuel_cost_per_km = Pf * fuel_consumption
+
+cost_factor = F_t + C_m + fuel_cost_per_km
+# (lo borramos sin culpa en el ultimo commit, en el penultimo estaba pero lo borramos sin culpa)
 model.cost_factor = cost_factor
 
 # ------------------------------------------------------------------------------
